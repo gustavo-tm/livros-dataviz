@@ -1,31 +1,35 @@
 livros <- readxl::read_excel("dados.xlsx") |> 
   mutate(dt_leitura = date(dt_leitura),
-         ranking = ifelse(ranking == 0, NA, ranking * 2),
-         nome_ranqueado = paste0("(", ranking, ") ", edicao_titulo))
+         ranking = ifelse(ranking == 0, NA, ranking * 2)) |> 
+  select(data_leitura = dt_leitura,
+         nota_usuario = ranking,
+         livro_link = edicao_url,
+         edicao_capa = edicao_capa_media) |> 
+  left_join(readRDS("livros_complemento.RDS"))
 
 plotar <- function(livros, variavel, remover_ranking_na){
   
   gg <- livros |>
-    drop_na(dt_leitura) |> 
+    drop_na(data_leitura) |> 
     
     # Remover ou manter ranking NA
     (\(df) if(remover_ranking_na == TRUE){
-      df |> drop_na(ranking)
+      df |> drop_na(nota_usuario)
     }else{df})() |> 
     
-    group_by(ano = year(dt_leitura), mes = month(dt_leitura), ranking) |> 
+    group_by(ano = year(data_leitura), mes = month(data_leitura), nota_usuario) |> 
     summarize(n = n(),
-              paginas = sum(edicao_paginas)) |> ungroup() |>  
+              paginas = sum(paginas)) |> ungroup() |>  
     mutate(mes_ano = make_date(year = ano, month = mes)) |> 
-    complete(mes_ano = seq(min(mes_ano), max(mes_ano), by = "1 month"), ranking, fill = list(n = 0, paginas = 0)) |> 
+    complete(mes_ano = seq(min(mes_ano), max(mes_ano), by = "1 month"), nota_usuario, fill = list(n = 0, paginas = 0)) |> 
     arrange(mes_ano) |> 
-    group_by(ranking) |> 
+    group_by(nota_usuario) |> 
     mutate(livros = cumsum(n),
            paginas = cumsum(paginas)) |> 
     ungroup() |> 
     rename("Páginas lidas" = paginas,
            "Livros lidos" = livros) |> 
-    ggplot(aes(x = mes_ano, y = !!sym(variavel), fill = factor(ranking, levels = rev(1:10)))) +
+    ggplot(aes(x = mes_ano, y = !!sym(variavel), fill = factor(nota_usuario, levels = rev(1:10)))) +
     geom_area() +
     scale_fill_manual("Nota atribuída",
                       values = list("10" = adjustcolor("gold", green.f = 1, offset = c(0, 0, .0, 0)), 
@@ -46,9 +50,6 @@ plotar <- function(livros, variavel, remover_ranking_na){
   ggplotly(gg)
 }
 
-mostrar_capa <- function(url){
-  image_read(url)
-}
 
 
 
