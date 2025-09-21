@@ -7,7 +7,7 @@ livros <- readxl::read_excel("dados.xlsx") |>
          edicao_capa = edicao_capa_media) |> 
   left_join(readRDS("livros_complemento.RDS"))
 
-plotar <- function(livros, variavel, remover_ranking_na){
+plotar_evolucaoLeituras <- function(livros, variavel, remover_ranking_na){
   
   gg <- livros |>
     drop_na(data_leitura) |> 
@@ -51,8 +51,30 @@ plotar <- function(livros, variavel, remover_ranking_na){
 }
 
 
+livros |> 
+  select(genero) |> 
+  unnest(genero) |> 
+  group_by(genero) |> 
+  summarize(n = n()) |>
+  ggplot(aes(area = n, fill = genero)) +
+  treemapify::geom_treemap() +
+  treemapify::geom_treemap_text(aes(label = genero))
 
 
+plotar_generos <- function(livros){
+  gg <- livros |> 
+    select(genero) |> 
+    unnest(genero) |> 
+    group_by(genero) |> 
+    summarize(n = n()) |> 
+    drop_na() |> 
+    ggplot() +
+    geom_col(aes(y = reorder(genero, n), x = n)) +
+    theme_minimal() +
+    labs(y = "", x = "")
+  
+  ggplotly(gg, source = "plot_generos")
+}
 
 
 
