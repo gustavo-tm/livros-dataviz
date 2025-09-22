@@ -50,35 +50,26 @@ plotar_evolucaoLeituras <- function(livros, variavel, remover_ranking_na){
   ggplotly(gg)
 }
 
-
-livros |> 
-  select(genero) |> 
-  unnest(genero) |> 
-  group_by(genero) |> 
-  summarize(n = n()) |>
-  ggplot(aes(area = n, fill = genero)) +
-  treemapify::geom_treemap() +
-  treemapify::geom_treemap_text(aes(label = genero))
-
-
-plotar_generos <- function(livros){
-  gg <- livros |> 
-    select(genero) |> 
-    unnest(genero) |> 
-    group_by(genero) |> 
+calcular_frequencias_categoria <- function(livros, categoria, frequencia_minima){
+  frequencias <- livros |> 
+    select(y := !!categoria) |> 
+    unnest(y) |> 
+    group_by(y) |> 
     summarize(n = n()) |> 
-    drop_na() |> 
-    ggplot() +
-    geom_col(aes(y = reorder(genero, n), x = n)) +
-    theme_minimal() +
-    labs(y = "", x = "")
-  
-  ggplotly(gg, source = "plot_generos")
+    filter(n >= frequencia_minima) |> 
+    drop_na()
 }
 
-
-
-
-
-
+plotar_categorias <- function(frequencias, tipo){
+  if(tipo == "barplot"){
+    ggplotly(
+      ggplot(frequencias) +
+        geom_col(aes(y = reorder(y, n), x = n, key = y)) +
+        theme_minimal() +
+        labs(y = "", x = ""),
+      source = "plot_categorias")
+  }else if(TRUE){
+    wordcloud(frequencias$y, frequencias$n, rot.per = 0, min.freq = 0, random.color = T)
+  }
+}
 

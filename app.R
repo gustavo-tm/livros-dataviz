@@ -5,12 +5,40 @@ library(plotly)
 source("funcoes.R")
 
 ui <- fluidPage(
+  
+  
   tabsetPanel(
-    tabPanel("Livros favoritos",
-             plotlyOutput("plot_generos", height = 600),
-             uiOutput("genero_capas")),
+    
+    
+    tabPanel("Categorias mais lidas",
+             fluidRow(
+               column(4,
+                      radioButtons("plot_categorias_categoria", "Escolha a divisão de categorias",
+                                   choiceNames = c("Gênero", "Tags"),
+                                   choiceValues = c("genero", "tags"))),
+               column(4,
+                      radioButtons("plot_categorias_tipo", "Escolha qual tipo de gráfico",
+                                   choiceNames = c("Gráfico de barras", "Wordcloud"),
+                                   choiceValues = c("barplot", "wordcloud"))),
+               column(4,
+                      sliderInput("plot_categorias_minimo_ocorrencias", "Mínimo de ocorrências para aparecer no gráfico",
+                                  value = 2, min = 1, max = 10),)
+             ),
+             
+             conditionalPanel(
+               condition = "input.plot_categorias_tipo == 'barplot'",
+               plotlyOutput("plot_categorias_barplot", height = 600),
+               textOutput("categoria_selecionada"),
+               uiOutput("genero_capas")
+             ),
+             
+             conditionalPanel(
+               condition = "input.plot_categorias_tipo == 'wordcloud'",
+               plotOutput("plot_categorias_wordcloud", height = 600)
+             )
+    ),
+
     tabPanel("Evolução de Leituras",
-             # titlePanel("Teste"),
              plotlyOutput("plot_livros"),
              plotlyOutput("plot_paginas"),
              checkboxInput("remover_ranking_na", "Remover leituras não avalidas", value = F))
@@ -18,6 +46,8 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+  
+  # Evolução leituras
   output$plot_livros <- renderPlotly({
     plotar_evolucaoLeituras(livros, variavel = "Livros lidos", input$remover_ranking_na)
   })
@@ -25,30 +55,35 @@ server <- function(input, output, session) {
     plotar_evolucaoLeituras(livros, variavel = "Páginas lidas", input$remover_ranking_na)
   })
   
-  output$plot_generos <- renderPlotly({
-    plotar_generos(livros)
+  # Categorias
+  frequencias <- reactive({
+    calcular_frequencias_categoria(
+      livros,
+      categoria = input$plot_categorias_categoria,
+      frequencia_minima = input$plot_categorias_minimo_ocorrencias
+    )
   })
   
-  genero_selecionado <- reactive({
-    click <- event_data("plotly_click", source = "plot_generos")
+  output$plot_categorias_barplot <- renderPlotly(plotar_categorias(frequencias(), tipo = "barplot"))
+  output$plot_categorias_wordcloud <- renderPlot(plotar_categorias(frequencias(), tipo = "wordcloud"))
+  
+  
+  categoria_selecionada <- reactive({
+    click <- event_data("plotly_click", source = "plot_categorias")$key
     if (is.null(click)) return(NULL)
-    
-    livros |> 
-      select(genero) |> 
-      unnest(genero) |> 
-      group_by(genero) |> 
-      summarize(n = n()) |> 
-      drop_na() |> 
-      arrange(n) |> 
-      slice(floor(click[["y"]])) |> 
-      pull(genero)
+    click
   })
+  
+  output$categoria_selecionada <- renderText(categoria_selecionada())
   
   output$genero_capas <- renderUI({
-    if (is.null(genero_selecionado())) return(NULL)
-    livros |> unnest(genero) |> filter(genero == !!genero_selecionado()) |> pull(edicao_capa) |> 
+    if (is.null(categoria_selecionada())) return(NULL)
+    livros |> 
+      select(y := !!input$plot_categorias_categoria, edicao_capa) |> 
+      unnest(y) |> 
+      filter(y == !!categoria_selecionada()) |> 
+      pull(edicao_capa) |>
       map(\(urls) img(src = urls, height = 200, width = 150))
-    
   })
 }
 
