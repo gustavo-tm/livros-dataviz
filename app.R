@@ -3,7 +3,7 @@ library(tidyverse)
 library(plotly)
 library(sf)
 library(leaflet)
-
+library(wordcloud)
 
 ui <- fluidPage(
   
@@ -32,7 +32,7 @@ ui <- fluidPage(
              conditionalPanel(
                condition = "input.plot_categorias_tipo == 'barplot'",
                plotlyOutput("plot_categorias_barplot", height = 600),
-               textOutput("categoria_selecionada"),
+               htmlOutput("categoria_selecionada"),
                uiOutput("genero_capas")
              ),
              
@@ -94,7 +94,11 @@ server <- function(input, output, session) {
     click
   })
   
-  output$categoria_selecionada <- renderText(categoria_selecionada())
+  output$categoria_selecionada <- renderText(HTML(paste0(
+    "<span style='font-size:24px; font-weight:bold'>",
+    categoria_selecionada(),
+    "</span>")
+  ))
   
   output$genero_capas <- renderUI({
     if (is.null(categoria_selecionada())) return(NULL)
