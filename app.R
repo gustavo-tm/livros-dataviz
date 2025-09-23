@@ -51,12 +51,12 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  source("funcoes.R")
-  livros_complemento <- readRDS("livros_complemento.rds")
-  autor_complemento <- readRDS("autores_complemento.rds")
-  locais_coordenadas <- readRDS("locais_coordenadas.rds")
+  source("script/funcoes.R")
+  livros_complemento <- readRDS("dados/livros_complemento.rds")
+  autor_complemento <- readRDS("dados/autores_complemento.rds")
+  locais_coordenadas <- readRDS("dados/locais_coordenadas.rds")
   
-  livros <- readxl::read_excel("dados.xlsx") |> 
+  livros <- readxl::read_excel("dados/usuario.xlsx") |> 
     mutate(dt_leitura = date(dt_leitura),
            ranking = ifelse(ranking == 0, NA, ranking * 2)) |> 
     select(data_leitura = dt_leitura,
