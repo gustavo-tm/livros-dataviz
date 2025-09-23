@@ -73,3 +73,47 @@ plotar_categorias <- function(frequencias, tipo){
   }
 }
 
+# autor_complemento |> 
+#   group_by(autor_pais, autor_cidade) |> 
+#   summarize(n = n(),
+#             autores = list(autor_nome))  |> ungroup() |> 
+#   mutate(across(c(autor_cidade, autor_pais), ~ replace_na(.x, ""))) |> 
+#   left_join(locais_coordenadas) 
+
+
+plotar_mapa <- function(autor_complemento, locais_coordenadas){
+  df <- autor_complemento |> 
+    group_by(autor_pais, autor_cidade) |> 
+    summarize(n = n()
+              # autores = list(autor_nome)
+    )  |> ungroup() |> 
+    mutate(across(c(autor_cidade, autor_pais), ~ replace_na(.x, ""))) |> 
+    left_join(locais_coordenadas) |> 
+    mutate(long = sf::st_coordinates(geometria)[,1],
+           lat = sf::st_coordinates(geometria)[,2])
+  
+  pal <- colorFactor(
+    palette = "Dark2",
+    domain = df$autor_pais)
+  
+  leaflet(df)  |> 
+    addTiles() |> 
+    addProviderTiles(providers$CartoDB.Positron) |> 
+    addCircleMarkers(radius = ~n/sum(n) * 200,
+                     color = ~ pal(autor_pais))
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

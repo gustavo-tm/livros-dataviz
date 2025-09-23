@@ -1,6 +1,8 @@
 library(shiny)
 library(tidyverse)
 library(plotly)
+library(sf)
+library(leaflet)
 
 source("funcoes.R")
 
@@ -9,6 +11,9 @@ ui <- fluidPage(
   
   tabsetPanel(
     
+    tabPanel("Mapa dos autores lidos",
+             leafletOutput("mapa_autores", height = 800)
+    ),
     
     tabPanel("Categorias mais lidas",
              fluidRow(
@@ -85,6 +90,11 @@ server <- function(input, output, session) {
       pull(edicao_capa) |>
       map(\(urls) img(src = urls, height = 200, width = 150))
   })
+  
+  output$mapa_autores <- renderLeaflet({
+    plotar_mapa(autor_complemento, locais_coordenadas)
+  })
+  
 }
 
 
