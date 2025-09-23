@@ -1,12 +1,3 @@
-livros <- readxl::read_excel("dados.xlsx") |> 
-  mutate(dt_leitura = date(dt_leitura),
-         ranking = ifelse(ranking == 0, NA, ranking * 2)) |> 
-  select(data_leitura = dt_leitura,
-         nota_usuario = ranking,
-         livro_link = edicao_url,
-         edicao_capa = edicao_capa_media) |> 
-  left_join(readRDS("livros_complemento.RDS"))
-
 plotar_evolucaoLeituras <- function(livros, variavel, remover_ranking_na){
   
   gg <- livros |>
@@ -80,36 +71,62 @@ plotar_categorias <- function(frequencias, tipo){
 #   mutate(across(c(autor_cidade, autor_pais), ~ replace_na(.x, ""))) |> 
 #   left_join(locais_coordenadas) 
 
-
-plotar_mapa <- function(autor_complemento, locais_coordenadas){
-  df <- autor_complemento |> 
+agregar_localidades <- function(autor_complemento, locais_coordenadas){
+  autor_complemento |>
+    distinct(autor_pais, autor_cidade, autor_nome) |> 
     group_by(autor_pais, autor_cidade) |> 
-    summarize(n = n()
-              # autores = list(autor_nome)
+    summarize(n = n(),
+              autores = list(autor_nome)
     )  |> ungroup() |> 
     mutate(across(c(autor_cidade, autor_pais), ~ replace_na(.x, ""))) |> 
     left_join(locais_coordenadas) |> 
     mutate(long = sf::st_coordinates(geometria)[,1],
            lat = sf::st_coordinates(geometria)[,2])
+}
+
+plotar_mapa <- function(localidades_agregadas){
+  
   
   pal <- colorFactor(
     palette = "Dark2",
-    domain = df$autor_pais)
+    domain = localidades_agregadas$autor_pais)
   
-  leaflet(df)  |> 
-    addTiles() |> 
+  leaflet(localidades_agregadas)  |>
+    addTiles(layerId = "map_click") |>
     addProviderTiles(providers$CartoDB.Positron) |> 
     addCircleMarkers(radius = ~n/sum(n) * 200,
                      color = ~ pal(autor_pais))
+  
+  # leaflet() %>%
+  #   addProviderTiles("CartoDB.Positron") %>%
+  #   setView(lng = -4, lat = 52.54, zoom = 7) %>%
+  #   addTiles(layerId = "map_click")
 }
 
+encontrar_ponto <- function(localidades_agregadas, lat, long){
+  # ponto <- st_sfc(st_point(c(long, lat)), crs = "epsg:4326")|> st_sf()
+  
+  
+  
+  ponto <- st_as_sf(data.frame(lat = lat, long = long), coords  = c("long", "lat"), crs = "epsg:4326", na.fail = FALSE)
+  
+  localidades_agregadas <- localidades_agregadas |> 
+    st_as_sf(crs = "epsg:4326")
+  
+  idx <- st_nearest_feature(ponto, localidades_agregadas)
+  
+  dist <- st_distance(ponto, localidades_agregadas[idx, ], by_element = TRUE)
+  
+  if(as.numeric(dist) < 10^6){
+    localidades_agregadas[idx, ] |> 
+      rowwise() |> 
+      mutate(popup =  paste(autores, collapse = "<br/>")) |> 
+      mutate(popup = paste(paste0("<b>", local, "</b>"), popup, sep ="<br/>")) |> 
+      # mutate(popup = paste(local, paste(autores, collapse = "<br/>")), sep = "<br/>") |> 
+      pull(popup)
+  }
 
-
-
-
-
-
-
+}
 
 
 

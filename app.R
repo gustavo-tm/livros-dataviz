@@ -4,7 +4,6 @@ library(plotly)
 library(sf)
 library(leaflet)
 
-source("funcoes.R")
 
 ui <- fluidPage(
   
@@ -12,7 +11,7 @@ ui <- fluidPage(
   tabsetPanel(
     
     tabPanel("Mapa dos autores lidos",
-             leafletOutput("mapa_autores", height = 800)
+             leafletOutput("map", height = 800)
     ),
     
     tabPanel("Categorias mais lidas",
@@ -52,7 +51,22 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  # Evolução leituras
+  source("funcoes.R")
+  livros_complemento <- readRDS("livros_complemento.rds")
+  autor_complemento <- readRDS("autores_complemento.rds")
+  locais_coordenadas <- readRDS("locais_coordenadas.rds")
+  
+  livros <- readxl::read_excel("dados.xlsx") |> 
+    mutate(dt_leitura = date(dt_leitura),
+           ranking = ifelse(ranking == 0, NA, ranking * 2)) |> 
+    select(data_leitura = dt_leitura,
+           nota_usuario = ranking,
+           livro_link = edicao_url,
+           edicao_capa = edicao_capa_media) |> 
+    left_join(livros_complemento)
+  
+  # Evolução leituras ----
+  
   output$plot_livros <- renderPlotly({
     plotar_evolucaoLeituras(livros, variavel = "Livros lidos", input$remover_ranking_na)
   })
@@ -60,7 +74,8 @@ server <- function(input, output, session) {
     plotar_evolucaoLeituras(livros, variavel = "Páginas lidas", input$remover_ranking_na)
   })
   
-  # Categorias
+  # Categorias ----
+  
   frequencias <- reactive({
     calcular_frequencias_categoria(
       livros,
@@ -91,9 +106,28 @@ server <- function(input, output, session) {
       map(\(urls) img(src = urls, height = 200, width = 150))
   })
   
-  output$mapa_autores <- renderLeaflet({
-    plotar_mapa(autor_complemento, locais_coordenadas)
+  
+  # MAPA ----
+  
+  localidades_agregadas <- agregar_localidades(autor_complemento, locais_coordenadas)
+  
+  output$map <- renderLeaflet({
+    plotar_mapa(localidades_agregadas)
   })
+  
+  observeEvent(input$map_click, {
+    click <- input$map_click
+    lat <- click$lat
+    lng <- click$lng
+    
+    popup <- encontrar_ponto(localidades_agregadas, lat, lng)
+    
+    proxy <- leafletProxy("map")
+    proxy  |> clearPopups() |> 
+      addPopups(lng, lat, popup)
+  })
+  
+  
   
 }
 
